@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notion 검색</title>
+  
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self'; 
+    script-src 'self' 'unsafe-inline'; 
+    style-src 'self' 'unsafe-inline'; 
+    connect-src 'self' https://notion-leaf-search-production.up.railway.app;
+    img-src 'self' data: https:;
+  ">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+      background: linear-gradient(135deg, #fafbfc 0%, #f6f8fa 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .search-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(13, 17, 23, 0.1), 0 8px 24px rgba(13, 17, 23, 0.04);
+      border: 1px solid #d1d9e0;
+      overflow: hidden;
+    }
+
+    header {
+      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      color: white;
+      padding: 32px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+      pointer-events: none;
+    }
+
+    header h1 {
+      font-size: 2.2em;
+      margin-bottom: 8px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      position: relative;
+      z-index: 1;
+    }
+
+    header p {
+      opacity: 0.95;
+      font-size: 1.1em;
+      font-weight: 400;
+      position: relative;
+      z-index: 1;
+    }
+
+    .search-box {
+      padding: 32px;
+      display: flex;
+      gap: 12px;
+      border-bottom: 1px solid #e1e4e8;
+      background: #fafbfc;
+    }
+
+    #searchInput {
+      flex: 1;
+      padding: 16px 18px;
+      border: 1px solid #d1d9e0;
+      border-radius: 8px;
+      font-size: 16px;
+      background: #ffffff;
+      color: #0d1117;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      font-weight: 400;
+    }
+
+    #searchInput:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+      background: #ffffff;
+    }
+
+    #searchInput::placeholder {
+      color: #656d76;
+    }
+
+    button {
+      padding: 16px 24px;
+      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 3px rgba(79, 70, 229, 0.2);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+      background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .filters {
+      padding: 20px 32px;
+      display: flex;
+      gap: 24px;
+      background: #f6f8fa;
+      border-bottom: 1px solid #e1e4e8;
+    }
+
+    .filters label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      color: #24292f;
+      font-size: 14px;
+    }
+
+    .filters input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #4f46e5;
+    }
+
+    #searchResults {
+      padding: 32px;
+      min-height: 200px;
+      background: #ffffff;
+    }
+
+    .result-item {
+      background: #ffffff;
+      border: 1px solid #e1e4e8;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+      position: relative;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 3px rgba(13, 17, 23, 0.04);
+    }
+
+    .result-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(13, 17, 23, 0.08);
+      border-color: #d1d9e0;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      margin-right: 120px;
+    }
+
+    .result-type {
+      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 1px 3px rgba(79, 70, 229, 0.2);
+    }
+
+    .result-title {
+      font-weight: 600;
+      color: #0d1117;
+      font-size: 1.2em;
+      line-height: 1.4;
+    }
+
+    .result-title a {
+      color: #0d1117;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .result-title a:hover {
+      color: #4f46e5;
+    }
+
+    .result-path {
+      color: #656d76;
+      font-size: 0.9em;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .result-content {
+      color: #24292f;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .parent-tag {
+      position: absolute;
+      top: 20px;
+      right: 24px;
+      background: linear-gradient(135deg, #f6f8fa 0%, #e1e4e8 100%);
+      color: #24292f;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid #e1e4e8;
+      box-shadow: 0 1px 2px rgba(13, 17, 23, 0.04);
+    }
+
+    .parent-tag.title-match {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde047 100%);
+      color: #92400e;
+      border-color: #fde047;
+    }
+
+    .match-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .match-badge.title {
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      color: white;
+    }
+
+    .match-badge.content {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: white;
+    }
+
+    .search-snippet {
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-left: 3px solid #4f46e5;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 12px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #656d76;
+      font-style: italic;
+    }
+
+    .highlight {
+      background: linear-gradient(135deg, #fef08a 0%, #fde047 100%);
+      color: #92400e;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(146, 64, 14, 0.1);
+    }
+
+    #searchStatus {
+      padding: 24px 32px;
+      text-align: center;
+      color: #656d76;
+      border-top: 1px solid #e1e4e8;
+      background: #fafbfc;
+    }
+
+    .status-ready {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border: 1px solid #7dd3fc;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #0c4a6e;
+      font-weight: 500;
+      display: inline-block;
+    }
+
+    .status-loading {
+      background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #92400e;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+    }
+
+    .status-success {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #14532d;
+      font-weight: 500;
+      display: inline-block;
+    }
+
+    .status-error {
+      background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+      border: 1px solid #fca5a5;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #991b1b;
+      font-weight: 500;
+      display: inline-block;
+    }
+
+    .loading {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #e1e4e8;
+      border-top: 2px solid #4f46e5;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 60px 20px;
+      color: #656d76;
+    }
+
+    .no-results-icon {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px auto;
+      font-size: 24px;
+      color: white;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+    }
+
+    .no-results h3 {
+      margin-bottom: 8px;
+      color: #24292f;
+      font-size: 1.2em;
+      font-weight: 600;
+    }
+
+    .no-results p {
+      color: #656d76;
+      font-size: 14px;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .result-item {
+      animation: fadeInUp 0.3s ease-out both;
+    }
+
+    .result-item:nth-child(1) { animation-delay: 0.05s; }
+    .result-item:nth-child(2) { animation-delay: 0.10s; }
+    .result-item:nth-child(3) { animation-delay: 0.15s; }
+    .result-item:nth-child(4) { animation-delay: 0.20s; }
+    .result-item:nth-child(5) { animation-delay: 0.25s; }
+
+    .subtree-badge {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    @media (max-width: 768px) {
+      .search-box {
+        flex-direction: column;
+        padding: 24px;
+      }
+      
+      .filters {
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px 24px;
+      }
+      
+      #searchResults {
+        padding: 24px;
+      }
+      
+      .result-item {
+        padding: 20px 16px;
+      }
+      
+      .result-header {
+        margin-right: 100px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="search-container">
+    <header>
+      <h1>🔍 Notion 검색</h1>
+      <p>서브트리 필터링 검색 시스템</p>
+    </header>
+    
+    <div class="search-box">
+      <input 
+        type="text" 
+        id="searchInput" 
+        placeholder="검색어를 입력하세요..."
+        autocomplete="off"
+        maxlength="200"
+      >
+      <button onclick="performSearch()" type="button">
+        검색
+      </button>
+    </div>
+    
+    <div class="filters">
+      <label>
+        <input type="checkbox" id="titleOnly" />
+        제목만 검색
+      </label>
+      <label>
+        <input type="checkbox" id="recentOnly" />
+        최근 수정된 페이지만
+      </label>
+    </div>
+    
+    <div id="searchStatus">
+      <div class="status-ready">⚡ 검색 준비됨</div>
+    </div>
+    
+    <div id="searchResults">
+      <!-- 검색 결과가 여기에 표시됩니다 -->
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+    
+    const WORKER_URL = 'https://notion-leaf-search-production.up.railway.app';
+
+    console.log('🌳 서브트리 필터링 검색 시스템 로드');
+
+    let searchTimeout = null;
+    let currentQuery = '';
+    let lastSearchData = null;
+    let currentEmbedPageId = null;
+
+    // ============================================
+    // 🔒 보안: HTML 이스케이프 함수
+    // ============================================
+    function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      return String(unsafe)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // ============================================
+    // 🔍 임베딩 페이지 ID 감지
+    // ============================================
+    function detectEmbedPageId() {
+      const isIframe = window.self !== window.top;
+      const currentPageUrl = isIframe ? document.referrer : document.location.href;
+      
+      console.log('🔍 디버그 정보:');
+      console.log('  - iframe 모드:', isIframe);
+      console.log('  - window.location.href:', window.location.href);
+      console.log('  - document.referrer:', document.referrer);
+      console.log('  - 사용할 URL:', currentPageUrl);
+      
+      const patterns = [
+        /notion\.so\/([a-f0-9]{32})/,
+        /notion\.so\/.*-([a-f0-9]{32})/,
+        /notion\.so\/([a-f0-9]{32})\?/,
+        /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4,5}-[a-f0-9]{12,16})/
+      ];
+      
+      for (let i = 0; i < patterns.length; i++) {
+        const pattern = patterns[i];
+        const match = currentPageUrl.match(pattern);
+        console.log(`  - 패턴 ${i + 1} 매칭:`, match ? match[1] : 'null');
+        
+        if (match && match[1]) {
+          let pageId = match[1].replace(/-/g, '');
+          
+          if (pageId.length === 32) {
+            pageId = pageId.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
+          }
+          
+          console.log(`✅ 추출된 페이지 ID: ${pageId}`);
+          return pageId;
+        }
+      }
+      
+      console.log('⚠️ 페이지 ID를 찾을 수 없음');
+      console.log('⚠️ currentPageUrl:', currentPageUrl);
+      return null;
+    }
+
+    // ============================================
+    // 🔍 서브트리 범위 검색
+    // ============================================
+    async function fastSearch(query) {
+      if (!query.trim()) return { results: [], searchTime: 0 };
+      
+      if (query.length > 200) {
+        throw new Error('검색어가 너무 깁니다 (최대 200자)');
+      }
+      
+      if (!currentEmbedPageId) {
+        currentEmbedPageId = detectEmbedPageId();
+      }
+      
+      console.log(`🔍 검색: "${query}" (embed: ${currentEmbedPageId || 'full_tree'})`);
+      const startTime = Date.now();
+      
+      try {
+        let searchUrl = `${WORKER_URL}/search?q=${encodeURIComponent(query)}`;
+        if (currentEmbedPageId) {
+          searchUrl += `&embed_page_id=${encodeURIComponent(currentEmbedPageId)}`;
+        }
+        
+        const response = await fetch(searchUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        const searchTime = Date.now() - startTime;
+        
+        console.log(`⚡ 검색 완료: ${data.results?.length || 0}개 결과 (${searchTime}ms)`);
+        console.log(`🌳 검색 범위: ${data.searchScope}`);
+        
+        lastSearchData = { ...data, searchTime };
+        return lastSearchData;
+        
+      } catch (error) {
+        console.error('검색 실패:', error);
+        throw error;
+      }
+    }
+
+    function extractSearchSnippet(content, query, maxLength = 120) {
+      if (!content || !query) return '';
+      
+      const searchTerm = query.toLowerCase();
+      const contentLower = content.toLowerCase();
+      const index = contentLower.indexOf(searchTerm);
+      
+      if (index === -1) return '';
+      
+      const start = Math.max(0, index - 40);
+      const end = Math.min(content.length, index + query.length + 80);
+      
+      let snippet = content.substring(start, end).trim();
+      
+      if (start > 0) snippet = '...' + snippet;
+      if (end < content.length) snippet = snippet + '...';
+      
+      if (snippet.length > maxLength) {
+        snippet = snippet.substring(0, maxLength) + '...';
+      }
+      
+      return snippet;
+    }
+
+    // ============================================
+    // 🗓️ 계층 구조를 고려한 스마트 날짜 표시
+    // ============================================
+    function getSmartDateDisplay(result) {
+      const parentTitle = result.parentInfo?.title;
+      const grandParentTitle = result.parentInfo?.grandParentInfo?.title;
+      
+      const isMonthlyType = /월간|monthly/i.test(result.title) || /월간|monthly/i.test(parentTitle || '');
+      const isYearlyType = /연간|yearly|annual/i.test(result.title) || /연간|yearly|annual/i.test(parentTitle || '');
+      
+      if (isYearlyType) {
+        if (parentTitle) {
+          const yearFromParent = extractYearFromTitle(parentTitle);
+          if (yearFromParent) {
+            return yearFromParent;
+          }
+        }
+        
+        if (result.created_time) {
+          const year = new Date(result.created_time).getFullYear();
+          return year.toString();
+        }
+      }
+      
+      if (isMonthlyType) {
+        let year = null, month = null;
+        
+        if (grandParentTitle) {
+          year = extractYearFromTitle(grandParentTitle);
+        }
+        
+        if (!year && result.created_time) {
+          year = new Date(result.created_time).getFullYear().toString();
+        }
+        
+        if (parentTitle) {
+          month = extractMonthFromTitle(parentTitle);
+        }
+        
+        if (year && month) {
+          return `${year}.${month}`;
+        }
+      }
+      
+      if (parentTitle && grandParentTitle) {
+        const year = extractYearFromTitle(grandParentTitle);
+        const month = extractMonthFromTitle(parentTitle);
+        
+        if (year && month) {
+          return `${year}.${month}`;
+        }
+      }
+      
+      if (parentTitle && !grandParentTitle) {
+        const month = extractMonthFromTitle(parentTitle);
+        if (month && result.created_time) {
+          const year = new Date(result.created_time).getFullYear();
+          return `${year}.${month}`;
+        }
+      }
+      
+      if (parentTitle) {
+        const year = extractYearFromTitle(parentTitle);
+        if (year) {
+          return year;
+        }
+      }
+      
+      const yearMonthFromTitle = extractYearMonthFromTitle(result.title);
+      if (yearMonthFromTitle) {
+        return yearMonthFromTitle;
+      }
+      
+      if (result.created_time) {
+        const createdYearMonth = formatNotionDateToYearMonth(result.created_time);
+        if (createdYearMonth) {
+          return createdYearMonth;
+        }
+      }
+      
+      const fallback = parentTitle 
+        ? (parentTitle.length > 8 ? parentTitle.substring(0, 8) + '...' : parentTitle)
+        : 'Root';
+      
+      return fallback;
+    }
+
+    function extractYearFromTitle(title) {
+      if (!title) return null;
+      const yearPattern = /(\d{4})년?/;
+      const yearMatch = title.match(yearPattern);
+      return yearMatch ? yearMatch[1] : null;
+    }
+
+    function extractMonthFromTitle(title) {
+      if (!title) return null;
+      const monthPattern = /(\d{1,2})월/;
+      const monthMatch = title.match(monthPattern);
+      return monthMatch ? monthMatch[1].padStart(2, '0') : null;
+    }
+
+    function extractYearMonthFromTitle(title) {
+      if (!title) return null;
+      
+      const fullDateTimePattern = /(\d{4})-(\d{1,2})-\d{1,2}/;
+      const fullDateTimeMatch = title.match(fullDateTimePattern);
+      
+      if (fullDateTimeMatch) {
+        const [, year, month] = fullDateTimeMatch;
+        return `${year}.${month.padStart(2, '0')}`;
+      }
+      
+      const yearMonthPattern = /(\d{4})[-./](\d{1,2})(?![-./]\d)/;
+      const yearMonthMatch = title.match(yearMonthPattern);
+      
+      if (yearMonthMatch) {
+        const [, year, month] = yearMonthMatch;
+        return `${year}.${month.padStart(2, '0')}`;
+      }
+      
+      const yearPattern = /^(\d{4})$/;
+      const yearMatch = title.match(yearPattern);
+      
+      if (yearMatch) {
+        return yearMatch[1];
+      }
+      
+      return null;
+    }
+
+    function formatNotionDateToYearMonth(isoString) {
+      if (!isoString) return null;
+      
+      try {
+        const date = new Date(isoString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        
+        return `${year}.${month}`;
+      } catch (error) {
+        console.warn('날짜 파싱 실패:', isoString);
+        return null;
+      }
+    }
+
+    // ============================================
+    // 🔒 보안 강화된 highlightText
+    // ============================================
+    function highlightText(text, query) {
+      if (!query || !text) return escapeHtml(text) || '';
+      
+      const escapedText = escapeHtml(text);
+      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      const regex = new RegExp(`(${escapedQuery})`, 'gi');
+      return escapedText.replace(regex, '<span class="highlight">$1</span>');
+    }
+
+    // ============================================
+    // 🔒 보안 강화된 renderResults
+    // ============================================
+    function renderResults(searchData, query) {
+      const resultsContainer = document.getElementById('searchResults');
+      const results = searchData.results || [];
+      
+      const titleOnly = document.getElementById('titleOnly')?.checked;
+      const filteredResults = titleOnly 
+        ? results.filter(r => r.matchReason === 'page_title')
+        : results;
+      
+      if (!filteredResults || filteredResults.length === 0) {
+        const safeQuery = escapeHtml(query);
+        resultsContainer.innerHTML = `
+          <div class="no-results">
+            <div class="no-results-icon">🔍</div>
+            <h3>검색 결과가 없습니다</h3>
+            <p>"${safeQuery}"에 대한 결과를 찾을 수 없습니다.</p>
+            <small style="color: #666; margin-top: 8px;">
+              검색 범위: ${searchData.searchScope === 'subtree' ? '현재 페이지 하위' : '전체 트리'}
+            </small>
+          </div>
+        `;
+        return;
+      }
+      
+      const resultsHTML = filteredResults.map((result, index) => {
+        const title = result.title || '제목 없음';
+        const url = result.url || `https://notion.so/${result.id.replace(/-/g, '')}`;
+        const isTitle = result.matchReason === 'page_title';
+        const snippet = extractSearchSnippet(result.content, query, 100);
+        const smartDate = getSmartDateDisplay(result);
+        
+        return `
+          <div class="result-item" style="animation-delay: ${index * 0.05}s;">
+            <div class="parent-tag ${isTitle ? 'title-match' : ''}">
+              ${escapeHtml(smartDate)}
+            </div>
+            
+            <div class="result-header">
+              <div class="match-badge ${isTitle ? 'title' : 'content'}">
+                ${isTitle ? 'TITLE' : 'CONTENT'}
+              </div>
+              ${result.isInSubtree !== undefined ? `
+                <div class="subtree-badge" style="
+                  background: ${result.isInSubtree ? '#d1fae5' : '#fef3c7'};
+                  color: ${result.isInSubtree ? '#065f46' : '#92400e'};
+                ">
+                  ${result.isInSubtree ? 'SUBTREE' : 'EXTERNAL'}
+                </div>
+              ` : ''}
+            </div>
+            
+            <h3 class="result-title">
+              <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
+                ${highlightText(title, query)}
+              </a>
+            </h3>
+            
+            ${snippet ? `
+              <div class="search-snippet">
+                ${highlightText(snippet, query)}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+      
+      resultsContainer.innerHTML = resultsHTML;
+      updateSearchStats(filteredResults.length, results.length, searchData.searchTime, searchData.searchScope);
+    }
+
+    function updateSearchStats(showing, total, searchTime, searchScope) {
+      const statusElement = document.getElementById('searchStatus');
+      
+      let statusText = `⚡ 검색 완료: <strong>${showing}개</strong>`;
+      if (showing !== total) {
+        statusText += ` (전체 ${total}개 중)`;
+      }
+      statusText += ` <span style="opacity: 0.7;">(${searchTime}ms)</span>`;
+      
+      const scopeText = searchScope === 'subtree' ? '현재 페이지 하위' : '전체 트리';
+      statusText += `<br><small style="opacity: 0.8;">범위: ${scopeText}</small>`;
+      
+      statusElement.innerHTML = `<div class="status-success">${statusText}</div>`;
+    }
+
+    async function performSearch() {
+      const query = document.getElementById('searchInput')?.value.trim();
+      const statusElement = document.getElementById('searchStatus');
+      const resultsContainer = document.getElementById('searchResults');
+      
+      currentQuery = query;
+      
+      if (!query) {
+        resultsContainer.innerHTML = '';
+        statusElement.innerHTML = `<div class="status-ready">⚡ 서브트리 필터링 검색 준비됨</div>`;
+        return;
+      }
+      
+      statusElement.innerHTML = `
+        <div class="status-loading">
+          <div class="spinner"></div>
+          <span>서브트리에서 검색 중...</span>
+        </div>
+      `;
+      
+      try {
+        const searchData = await fastSearch(query);
+        
+        if (currentQuery !== query) return;
+        
+        renderResults(searchData, query);
+        
+      } catch (error) {
+        console.error('검색 실패:', error);
+        statusElement.innerHTML = `
+          <div class="status-error">
+            ❌ 검색 실패: ${escapeHtml(error.message)}
+          </div>
+        `;
+      }
+    }
+
+    function handleSearchInput() {
+      clearTimeout(searchTimeout);
+      
+      const query = document.getElementById('searchInput')?.value.trim();
+      
+      if (query.length === 0) {
+        performSearch();
+        return;
+      }
+      
+      if (query.length < 2) return;
+      
+      searchTimeout = setTimeout(() => {
+        performSearch();
+      }, 300);
+    }
+
+    function handleFilterChange() {
+      if (currentQuery && lastSearchData) {
+        renderResults(lastSearchData, currentQuery);
+      }
+    }
+
+    function handleKeyboard(event) {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+        event.preventDefault();
+        document.getElementById('searchInput')?.focus();
+      }
+      
+      if (event.key === 'Escape') {
+        const input = document.getElementById('searchInput');
+        if (input) {
+          input.value = '';
+          input.blur();
+          performSearch();
+        }
+      }
+    }
+
+    async function loadSubtreeStats() {
+      try {
+        if (!currentEmbedPageId) {
+          currentEmbedPageId = detectEmbedPageId();
+        }
+        
+        if (!currentEmbedPageId) {
+          const statusElement = document.getElementById('searchStatus');
+          if (statusElement) {
+            statusElement.innerHTML = `
+              <div class="status-ready">
+                ⚡ 검색 준비됨 • 전체 트리 대상
+              </div>
+            `;
+          }
+          return;
+        }
+        
+        const response = await fetch(`${WORKER_URL}/subtree-stats?embed_page_id=${encodeURIComponent(currentEmbedPageId)}`);
+        const stats = await response.json();
+        
+        const statusElement = document.getElementById('searchStatus');
+        if (statusElement && stats.stats) {
+          statusElement.innerHTML = `
+            <div class="status-ready">
+              ⚡ 검색 준비됨 • ${stats.stats.leaf_pages}개 페이지 • 
+              <small style="opacity: 0.8;">범위: 현재 페이지 하위</small>
+            </div>
+          `;
+        }
+      } catch (error) {
+        console.warn('서브트리 통계 로드 실패:', error);
+      }
+    }
+
+    // ============================================
+    // 이벤트 리스너 및 초기화
+    // ============================================
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('🌳 서브트리 필터링 UI 초기화');
+      
+      currentEmbedPageId = detectEmbedPageId();
+      
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) {
+        searchInput.addEventListener('input', handleSearchInput);
+        searchInput.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            clearTimeout(searchTimeout);
+            performSearch();
+          }
+        });
+        
+        searchInput.addEventListener('focus', function() {
+          this.select();
+        });
+      }
+      
+      const titleOnly = document.getElementById('titleOnly');
+      const recentOnly = document.getElementById('recentOnly');
+      
+      if (titleOnly) titleOnly.addEventListener('change', handleFilterChange);
+      if (recentOnly) recentOnly.addEventListener('change', handleFilterChange);
+      
+      document.addEventListener('keydown', handleKeyboard);
+      
+      loadSubtreeStats();
+      
+      setTimeout(() => {
+        searchInput?.focus();
+      }, 500);
+    });
+
+    // ============================================
+    // 전역 함수 노출
+    // ============================================
+    window.fastSearch = fastSearch;
+    window.performSearch = performSearch;
+    window.renderResults = renderResults;
+    window.highlightText = highlightText;
+    window.detectEmbedPageId = detectEmbedPageId;
+    window.loadSubtreeStats = loadSubtreeStats;
+
+    console.log('🌳 서브트리 필터링 검색 시스템 준비 완료');
+    console.log(`🔍 감지된 임베딩 페이지 ID: ${currentEmbedPageId || 'none (전체 트리 검색)'}`);
+    console.log('💡 단축키: Ctrl/Cmd + K (검색창 포커스), ESC (초기화)');
+  </script>
+</body>
+</html>
