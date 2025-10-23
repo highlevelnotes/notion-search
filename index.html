@@ -515,43 +515,62 @@
     // 🔍 임베딩 페이지 ID 감지
     // ============================================
     function detectEmbedPageId() {
-      const isIframe = window.self !== window.top;
-      const currentPageUrl = isIframe ? document.referrer : document.location.href;
-      
-      console.log('🔍 디버그 정보:');
-      console.log('  - iframe 모드:', isIframe);
-      console.log('  - window.location.href:', window.location.href);
-      console.log('  - document.referrer:', document.referrer);
-      console.log('  - 사용할 URL:', currentPageUrl);
-      
-      const patterns = [
-        /notion\.so\/([a-f0-9]{32})/,
-        /notion\.so\/.*-([a-f0-9]{32})/,
-        /notion\.so\/([a-f0-9]{32})\?/,
-        /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4,5}-[a-f0-9]{12,16})/
-      ];
-      
-      for (let i = 0; i < patterns.length; i++) {
-        const pattern = patterns[i];
-        const match = currentPageUrl.match(pattern);
-        console.log(`  - 패턴 ${i + 1} 매칭:`, match ? match[1] : 'null');
+        // 🆕 1. URL 파라미터 확인 (최우선)
+        const urlParams = new URLSearchParams(window.location.search);
+        const pageParam = urlParams.get('page') || urlParams.get('pageId') || urlParams.get('id');
         
-        if (match && match[1]) {
-          let pageId = match[1].replace(/-/g, '');
-          
-          if (pageId.length === 32) {
+        if (pageParam) {
+            // 하이픈 제거하고 정규화
+            let pageId = pageParam.replace(/-/g, '');
+            
+            // 32자리면 하이픈 추가
+            if (pageId.length === 32) {
             pageId = pageId.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
-          }
-          
-          console.log(`✅ 추출된 페이지 ID: ${pageId}`);
-          return pageId;
+            }
+            
+            console.log(`✅ URL 파라미터에서 페이지 ID 추출: ${pageId}`);
+            return pageId;
         }
-      }
-      
-      console.log('⚠️ 페이지 ID를 찾을 수 없음');
-      console.log('⚠️ currentPageUrl:', currentPageUrl);
-      return null;
-    }
+        
+        // 2. iframe의 referrer 확인
+        const isIframe = window.self !== window.top;
+        const currentPageUrl = isIframe ? document.referrer : document.location.href;
+        
+        console.log('🔍 디버그 정보:');
+        console.log('  - iframe 모드:', isIframe);
+        console.log('  - window.location.href:', window.location.href);
+        console.log('  - document.referrer:', document.referrer);
+        console.log('  - 사용할 URL:', currentPageUrl);
+        
+        const patterns = [
+            /notion\.so\/([a-f0-9]{32})/,
+            /notion\.so\/.*-([a-f0-9]{32})/,
+            /notion\.so\/([a-f0-9]{32})\?/,
+            /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4,5}-[a-f0-9]{12,16})/
+        ];
+        
+        for (let i = 0; i < patterns.length; i++) {
+            const pattern = patterns[i];
+            const match = currentPageUrl.match(pattern);
+            console.log(`  - 패턴 ${i + 1} 매칭:`, match ? match[1] : 'null');
+            
+            if (match && match[1]) {
+            let pageId = match[1].replace(/-/g, '');
+            
+            if (pageId.length === 32) {
+                pageId = pageId.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
+            }
+            
+            console.log(`✅ Referrer에서 페이지 ID 추출: ${pageId}`);
+            return pageId;
+            }
+        }
+        
+        console.log('⚠️ 페이지 ID를 찾을 수 없음');
+        console.log('⚠️ currentPageUrl:', currentPageUrl);
+        return null;
+        }
+
 
     // ============================================
     // 🔍 서브트리 범위 검색
